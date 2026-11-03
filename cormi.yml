@@ -1,0 +1,13 @@
+- name: '@cormijs/preset'
+  config:
+    title: Mone — Uptime Monitoring
+    ssr: false
+    history: browser
+
+- name: '@cormijs/vite'
+
+- name: '@cormijs/vue'
+
+- name: '@cormijs/plugin-tailwindcss'
+  config:
+    css: src/styles/main.css

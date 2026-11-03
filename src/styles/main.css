@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope Variable", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --color-canvas: #f3f4ef;
+  --color-paper: #fbfcf8;
+  --color-ink: #18241d;
+  --color-muted: #68746c;
+  --color-line: #dfe3da;
+  --color-forest: #14271d;
+  --color-lime: #c7f36b;
+  --color-up: #238554;
+  --color-down: #d54d3f;
+  --color-pending: #a77b26;
+}
+
+:root {
+  color: #18241d;
+  background: #f3f4ef;
+  font-family: "Manrope Variable", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  background: #f3f4ef;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #238554;
+  outline-offset: 3px;
+}
+
+::selection {
+  color: #14271d;
+  background: #c7f36b;
+}
+
+@layer components {
+  .surface {
+    @apply rounded-2xl border border-line bg-paper;
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 hover:bg-ink disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .button-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-paper px-4 py-2.5 text-sm font-semibold text-ink hover:border-muted hover:bg-white disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .icon-button {
+    @apply inline-flex size-9 items-center justify-center rounded-lg border border-transparent text-muted hover:border-line hover:bg-white hover:text-ink;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/60 focus:border-up focus:outline-none;
+  }
+
+  .field-label {
+    @apply mb-2 block text-xs font-bold tracking-wide text-ink;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted;
+  }
+
+  .data-mono {
+    @apply font-mono text-[13px] tracking-tight;
+  }
+}
+
+.page-enter-active {
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

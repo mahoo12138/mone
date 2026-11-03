@@ -1,0 +1,8 @@
+{
+  "extends": "./src/.cormi/tsconfig.json",
+  "include": [
+    "src/**/*",
+    "src/**/*.vue",
+    "src/.cormi/typings.d.ts"
+  ]
+}

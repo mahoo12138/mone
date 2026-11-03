@@ -1,0 +1,32 @@
+{
+  "name": "mone",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.6.3",
+  "scripts": {
+    "dev": "cormi dev",
+    "build": "cormi build",
+    "preview": "cormi preview",
+    "setup": "cormi setup",
+    "typecheck": "cormi setup && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@cormijs/cormi": "0.1.0-rc.1",
+    "@cormijs/plugin-tailwindcss": "0.1.0-rc.1",
+    "@cormijs/preset": "0.1.0-rc.1",
+    "@cormijs/vite": "0.1.0-rc.1",
+    "@cormijs/vue": "0.1.0-rc.1",
+    "@fontsource-variable/manrope": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@lucide/vue": "^1.0.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vue-tsc": "^3.2.0"
+  }
+}
