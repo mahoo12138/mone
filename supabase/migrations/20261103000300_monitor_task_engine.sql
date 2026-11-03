@@ -1,0 +1,175 @@
+alter table public.monitors
+  add column if not exists consecutive_failures integer not null default 0,
+  add column if not exists consecutive_successes integer not null default 0,
+  add column if not exists last_ssl_expiring_notified_at timestamptz;
+
+create or replace function public.claim_due_monitors(p_limit integer, p_lease_seconds integer)
+returns setof public.monitors
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  with candidates as (
+    select id
+    from public.monitors
+    where status = 'active'
+      and next_check_at <= now()
+      and (lease_until is null or lease_until <= now())
+    order by next_check_at asc
+    for update skip locked
+    limit least(greatest(p_limit, 1), 100)
+  )
+  update public.monitors as m
+  set lease_until = now() + make_interval(secs => least(greatest(p_lease_seconds, 30), 600)),
+      updated_at = now()
+  from candidates
+  where m.id = candidates.id
+  returning m.*;
+end;
+$$;
+
+create or replace function public.record_check_result(
+  p_monitor_id uuid,
+  p_status text,
+  p_response_time_ms integer,
+  p_status_code integer,
+  p_error_message text,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  monitor public.monitors;
+  incident public.incidents;
+  result public.check_results;
+  notification_count integer := 0;
+  event_type text;
+begin
+  if p_status not in ('up', 'down') then
+    raise exception 'invalid check status';
+  end if;
+
+  select * into monitor
+  from public.monitors
+  where id = p_monitor_id
+  for update;
+
+  if not found then
+    raise exception 'monitor % not found', p_monitor_id;
+  end if;
+
+  insert into public.check_results (
+    monitor_id, user_id, status, response_time_ms, status_code, error_message, checked_at, metadata
+  ) values (
+    p_monitor_id, monitor.user_id, p_status, p_response_time_ms, p_status_code, p_error_message, now(), coalesce(p_metadata, '{}'::jsonb)
+  )
+  returning * into result;
+
+  if p_status = 'up' then
+    update public.monitors as m
+    set consecutive_successes = m.consecutive_successes + 1,
+        consecutive_failures = 0,
+        last_response_time_ms = coalesce(p_response_time_ms, m.last_response_time_ms),
+        last_check_at = now(),
+        next_check_at = now() + make_interval(secs => m.interval_seconds),
+        lease_until = null,
+        updated_at = now()
+    where m.id = p_monitor_id
+    returning m.* into monitor;
+
+    if monitor.current_state = 'pending'
+       or (monitor.current_state = 'down' and monitor.consecutive_successes >= monitor.success_threshold) then
+      update public.monitors
+      set current_state = 'up',
+          consecutive_failures = 0,
+          consecutive_successes = 0,
+          updated_at = now()
+      where id = p_monitor_id
+      returning * into monitor;
+
+      update public.incidents
+      set status = 'resolved',
+          resolved_at = now(),
+          duration_seconds = greatest(0, floor(extract(epoch from (now() - started_at)))::bigint)
+      where monitor_id = p_monitor_id
+        and status = 'ongoing'
+      returning * into incident;
+
+      if found then
+        event_type := 'recovered';
+      end if;
+    end if;
+  else
+    update public.monitors as m
+    set consecutive_failures = m.consecutive_failures + 1,
+        consecutive_successes = 0,
+        last_response_time_ms = null,
+        last_check_at = now(),
+        next_check_at = now() + make_interval(secs => m.interval_seconds),
+        lease_until = null,
+        updated_at = now()
+    where m.id = p_monitor_id
+    returning m.* into monitor;
+
+    if monitor.current_state <> 'down' and monitor.consecutive_failures >= monitor.failure_threshold then
+      update public.monitors
+      set current_state = 'down',
+          consecutive_failures = 0,
+          consecutive_successes = 0,
+          updated_at = now()
+      where id = p_monitor_id
+      returning * into monitor;
+
+      select * into incident
+      from public.incidents
+      where monitor_id = p_monitor_id
+        and status = 'ongoing'
+      for update;
+
+      if not found then
+        insert into public.incidents (
+          monitor_id, user_id, status, cause, started_at
+        ) values (
+          p_monitor_id, monitor.user_id, 'ongoing',
+          coalesce(nullif(p_error_message, ''), 'Check failed'), now()
+        )
+        returning * into incident;
+      end if;
+
+      event_type := 'down';
+    end if;
+  end if;
+
+  if event_type is not null then
+    insert into public.notification_deliveries (
+      incident_id, channel_id, user_id, event_type, status, next_attempt_at
+    )
+    select incident.id, channel.id, incident.user_id, event_type, 'pending', now()
+    from public.notification_channels as channel
+    where channel.user_id = incident.user_id
+      and channel.enabled
+    on conflict (incident_id, channel_id, event_type) do nothing;
+
+    get diagnostics notification_count = row_count;
+  end if;
+
+  return jsonb_build_object(
+    'monitor_id', monitor.id,
+    'current_state', monitor.current_state,
+    'result_id', result.id,
+    'incident_id', incident.id,
+    'event_type', event_type,
+    'notification_count', notification_count
+  );
+end;
+$$;
+
+revoke all on function public.claim_due_monitors(integer, integer) from public;
+revoke all on function public.record_check_result(uuid, text, integer, integer, text, jsonb) from public;
+grant execute on function public.claim_due_monitors(integer, integer) to service_role;
+grant execute on function public.record_check_result(uuid, text, integer, integer, text, jsonb) to service_role;
