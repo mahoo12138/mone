@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { CheckResult } from '../../types'
 
 const props = defineProps<{ results: CheckResult[] }>()
+const { t } = useI18n()
 const width = 800
 const height = 230
 const padding = { top: 18, right: 16, bottom: 28, left: 46 }
@@ -30,12 +32,12 @@ const ticks = computed(() => [0, 0.5, 1].map((ratio) => ({
   <div>
     <div class="mb-4 flex items-center justify-between">
       <div>
-        <p class="eyebrow">Average response</p>
-        <p class="mt-1 font-mono text-2xl font-medium tracking-tight">{{ average }}<span class="ml-1 text-sm text-muted">ms</span></p>
+        <p class="eyebrow">{{ t('responseChart.average') }}</p>
+        <p class="mt-1 font-mono text-2xl font-medium tracking-tight">{{ average }}<span class="ml-1 text-sm text-muted">{{ t('common.ms') }}</span></p>
       </div>
-      <span class="flex items-center gap-2 text-xs text-muted"><span class="h-0.5 w-5 bg-up" /> Response time</span>
+      <span class="flex items-center gap-2 text-xs text-muted"><span class="h-0.5 w-5 bg-up" /> {{ t('responseChart.series') }}</span>
     </div>
-    <svg :viewBox="`0 0 ${width} ${height}`" class="h-auto w-full overflow-visible" role="img" aria-label="Response time over the last 24 hours">
+    <svg :viewBox="`0 0 ${width} ${height}`" class="h-auto w-full overflow-visible" role="img" :aria-label="t('responseChart.axisLabel')">
       <defs>
         <linearGradient id="response-area" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#238554" stop-opacity="0.18" />
@@ -51,8 +53,8 @@ const ticks = computed(() => [0, 0.5, 1].map((ratio) => ({
       <g v-for="point in points.filter((item) => item.result.status === 'down')" :key="point.result.id">
         <circle :cx="point.x" :cy="height - padding.bottom" r="3" fill="#d54d3f" />
       </g>
-      <text :x="padding.left" :y="height - 5" fill="#68746c" font-size="10" font-family="IBM Plex Mono">24h ago</text>
-      <text :x="width - padding.right" :y="height - 5" text-anchor="end" fill="#68746c" font-size="10" font-family="IBM Plex Mono">Now</text>
+      <text :x="padding.left" :y="height - 5" fill="#68746c" font-size="10" font-family="IBM Plex Mono">{{ t('responseChart.from24h') }}</text>
+      <text :x="width - padding.right" :y="height - 5" text-anchor="end" fill="#68746c" font-size="10" font-family="IBM Plex Mono">{{ t('responseChart.now') }}</text>
     </svg>
   </div>
 </template>

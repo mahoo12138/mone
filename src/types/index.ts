@@ -1,4 +1,4 @@
-export type MonitorType = 'http' | 'tcp' | 'ssl'
+export type MonitorType = 'http' | 'tcp'
 export type MonitorState = 'up' | 'down' | 'pending'
 export type MonitorStatus = 'active' | 'paused'
 export type HttpMethod = 'GET' | 'POST' | 'HEAD' | 'PUT' | 'PATCH' | 'DELETE'
@@ -18,13 +18,7 @@ export interface TcpConfig {
   timeoutMs: number
 }
 
-export interface SslConfig {
-  host: string
-  port: number
-  expiryThresholdDays: number
-}
-
-export type MonitorConfig = HttpConfig | TcpConfig | SslConfig
+export type MonitorConfig = HttpConfig | TcpConfig
 
 export interface Monitor {
   id: string
@@ -71,16 +65,13 @@ export interface NotificationChannel {
   name: string
   type: 'telegram' | 'discord'
   target: string
+  config: Record<string, string>
   enabled: boolean
   createdAt: string
 }
 
-export interface CertificateInfo {
-  issuer: string
-  subject: string
-  validFrom: string
-  validTo: string
-  daysRemaining: number
-  hostnameMatch: boolean
-  chainValid: boolean
+export interface NotificationChannelInput {
+  name: string
+  type: 'telegram' | 'discord'
+  config: Record<string, string>
 }

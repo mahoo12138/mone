@@ -1,16 +1,28 @@
 <script setup lang="ts">
 import { RouterLink } from '@cormijs/vue/client'
 import { ArrowUpRight, Pencil, Pause, Play, Trash2 } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
+import { toast } from '../../composables/useToast'
 import { useMone } from '../../composables/useMone'
 import type { Monitor } from '../../types'
 import { formatRelativeTime, monitorTarget } from '../../utils/format'
 import MonitorTypeBadge from '../common/MonitorTypeBadge.vue'
 import StatusBadge from '../common/StatusBadge.vue'
 import HeartbeatBar from '../charts/HeartbeatBar.vue'
+import IconTooltip from '../ui/IconTooltip.vue'
 
 defineProps<{ monitors: Monitor[]; showHeartbeat?: boolean }>()
 const emit = defineEmits<{ edit: [monitor: Monitor]; delete: [monitor: Monitor] }>()
-const { toggleMonitor } = useMone()
+const { t } = useI18n()
+const { toggleMonitor, error } = useMone()
+
+async function toggle(monitor: Monitor) {
+  const wasActive = monitor.status === 'active'
+  error.value = ''
+  await toggleMonitor(monitor.id)
+  if (error.value) return
+  toast(t(wasActive ? 'toasts.monitorPaused' : 'toasts.monitorResumed', { name: monitor.name }))
+}
 </script>
 
 <template>
@@ -18,13 +30,13 @@ const { toggleMonitor } = useMone()
     <table class="w-full min-w-[850px] border-collapse text-left">
       <thead>
         <tr class="border-b border-line text-[11px] uppercase tracking-[0.1em] text-muted">
-          <th class="px-5 py-3 font-semibold">Monitor</th>
-          <th class="px-4 py-3 font-semibold">Status</th>
-          <th v-if="showHeartbeat" class="w-[180px] px-4 py-3 font-semibold">Last 24 hours</th>
-          <th class="px-4 py-3 font-semibold">Response</th>
-          <th class="px-4 py-3 font-semibold">Uptime</th>
-          <th class="px-4 py-3 font-semibold">Last check</th>
-          <th class="w-[132px] px-4 py-3 text-right font-semibold">Actions</th>
+          <th class="px-5 py-3 font-semibold">{{ t('monitorTable.colMonitor') }}</th>
+          <th class="px-4 py-3 font-semibold">{{ t('monitorTable.colStatus') }}</th>
+          <th v-if="showHeartbeat" class="w-[180px] px-4 py-3 font-semibold">{{ t('monitorTable.colHeartbeat') }}</th>
+          <th class="px-4 py-3 font-semibold">{{ t('monitorTable.colResponse') }}</th>
+          <th class="px-4 py-3 font-semibold">{{ t('monitorTable.colUptime') }}</th>
+          <th class="px-4 py-3 font-semibold">{{ t('monitorTable.colLastCheck') }}</th>
+          <th class="w-[132px] px-4 py-3 text-right font-semibold">{{ t('common.actions') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -42,16 +54,22 @@ const { toggleMonitor } = useMone()
           </td>
           <td class="px-4 py-4"><StatusBadge :state="monitor.currentState" :paused="monitor.status === 'paused'" compact /></td>
           <td v-if="showHeartbeat" class="px-4 py-4"><HeartbeatBar :monitor="monitor" :count="28" /></td>
-          <td class="px-4 py-4 data-mono">{{ monitor.responseTimeMs === null ? '—' : `${monitor.responseTimeMs} ms` }}</td>
+          <td class="px-4 py-4 data-mono">{{ monitor.responseTimeMs === null ? '—' : `${monitor.responseTimeMs} ${t('common.ms')}` }}</td>
           <td class="px-4 py-4 data-mono">{{ monitor.uptime24h.toFixed(2) }}%</td>
           <td class="whitespace-nowrap px-4 py-4 text-xs text-muted">{{ formatRelativeTime(monitor.lastCheckAt) }}</td>
           <td class="px-4 py-3">
             <div class="flex items-center justify-end gap-0.5">
-              <button class="icon-button" :aria-label="monitor.status === 'active' ? `Pause ${monitor.name}` : `Resume ${monitor.name}`" @click="toggleMonitor(monitor.id)">
-                <Pause v-if="monitor.status === 'active'" :size="15" /><Play v-else :size="15" />
-              </button>
-              <button class="icon-button" :aria-label="`Edit ${monitor.name}`" @click="emit('edit', monitor)"><Pencil :size="15" /></button>
-              <button class="icon-button hover:text-down" :aria-label="`Delete ${monitor.name}`" @click="emit('delete', monitor)"><Trash2 :size="15" /></button>
+              <IconTooltip :label="t(monitor.status === 'active' ? 'monitorTable.pause' : 'monitorTable.resume', { name: monitor.name })">
+                <button class="icon-button" :aria-label="t(monitor.status === 'active' ? 'monitorTable.pause' : 'monitorTable.resume', { name: monitor.name })" @click="toggle(monitor)">
+                  <Pause v-if="monitor.status === 'active'" :size="15" /><Play v-else :size="15" />
+                </button>
+              </IconTooltip>
+              <IconTooltip :label="t('monitorTable.edit', { name: monitor.name })">
+                <button class="icon-button" :aria-label="t('monitorTable.edit', { name: monitor.name })" @click="emit('edit', monitor)"><Pencil :size="15" /></button>
+              </IconTooltip>
+              <IconTooltip :label="t('monitorTable.delete', { name: monitor.name })">
+                <button class="icon-button hover:text-down" :aria-label="t('monitorTable.delete', { name: monitor.name })" @click="emit('delete', monitor)"><Trash2 :size="15" /></button>
+              </IconTooltip>
             </div>
           </td>
         </tr>

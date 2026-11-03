@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
-import { Globe2, Network, ShieldCheck } from '@lucide/vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { Globe2, Network } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import { useMone } from '../../composables/useMone'
+import AppSelect from '../ui/AppSelect.vue'
 import type { HttpMethod, Monitor, MonitorConfig, MonitorInput, MonitorType } from '../../types'
 
 const props = defineProps<{ monitor?: Monitor }>()
 const emit = defineEmits<{ saved: [monitor: Monitor]; cancel: [] }>()
-const { createMonitor, updateMonitor, getMonitor } = useMone()
+const { t } = useI18n()
+const { createMonitor, updateMonitor } = useMone()
 
 const form = reactive({
   name: '',
@@ -19,18 +22,28 @@ const form = reactive({
   timeoutMs: 10000,
   host: '',
   port: 443,
-  expiryThresholdDays: 14,
   intervalSeconds: 60,
   failureThreshold: 3,
   successThreshold: 2,
   error: '',
+  submitting: false,
 })
 
-const types = [
-  { value: 'http' as const, label: 'HTTP / HTTPS', description: 'Request a URL and validate its response.', icon: Globe2 },
-  { value: 'tcp' as const, label: 'TCP', description: 'Check whether a host accepts connections.', icon: Network },
-  { value: 'ssl' as const, label: 'SSL / TLS', description: 'Track certificate health and expiration.', icon: ShieldCheck },
-]
+const types = computed(() => [
+  { value: 'http' as const, label: t('monitorType.http.label'), description: t('monitorType.http.description'), icon: Globe2 },
+  { value: 'tcp' as const, label: t('monitorType.tcp.label'), description: t('monitorType.tcp.description'), icon: Network },
+])
+
+const methods: HttpMethod[] = ['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE']
+const intervals = computed(() => [
+  { value: 30, label: t('monitorForm.intervalSeconds', { seconds: 30 }) },
+  { value: 60, label: t('monitorForm.intervalMinute') },
+  { value: 120, label: t('monitorForm.intervalMinutes', { count: 2 }) },
+  { value: 180, label: t('monitorForm.intervalMinutes', { count: 3 }) },
+  { value: 300, label: t('monitorForm.intervalMinutes', { count: 5 }) },
+  { value: 600, label: t('monitorForm.intervalMinutes', { count: 10 }) },
+  { value: 3600, label: t('monitorForm.intervalHour') },
+])
 
 watch(() => props.monitor, (monitor) => {
   form.error = ''
@@ -47,14 +60,10 @@ watch(() => props.monitor, (monitor) => {
     form.body = monitor.config.body
     form.expectedStatusCodes = monitor.config.expectedStatusCodes.join(', ')
     form.timeoutMs = monitor.config.timeoutMs
-  } else if (monitor.type === 'tcp' && 'host' in monitor.config && 'timeoutMs' in monitor.config) {
+  } else if (monitor.type === 'tcp' && 'host' in monitor.config) {
     form.host = monitor.config.host
     form.port = monitor.config.port
     form.timeoutMs = monitor.config.timeoutMs
-  } else if (monitor.type === 'ssl' && 'host' in monitor.config && 'expiryThresholdDays' in monitor.config) {
-    form.host = monitor.config.host
-    form.port = monitor.config.port
-    form.expiryThresholdDays = monitor.config.expiryThresholdDays
   }
 }, { immediate: true })
 
@@ -70,14 +79,13 @@ function buildConfig(): MonitorConfig {
       timeoutMs: Number(form.timeoutMs),
     }
   }
-  if (form.type === 'tcp') return { host: form.host.trim(), port: Number(form.port), timeoutMs: Number(form.timeoutMs) }
-  return { host: form.host.trim(), port: Number(form.port), expiryThresholdDays: Number(form.expiryThresholdDays) }
+  return { host: form.host.trim(), port: Number(form.port), timeoutMs: Number(form.timeoutMs) }
 }
 
-function submit() {
+async function submit() {
   form.error = ''
   if (!form.name.trim()) {
-    form.error = 'Give this monitor a recognizable name.'
+    form.error = t('monitorForm.errorName')
     return
   }
   if (form.type === 'http') {
@@ -85,24 +93,26 @@ function submit() {
       const url = new URL(form.url)
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error()
     } catch {
-      form.error = 'Enter a valid HTTP or HTTPS URL.'
+      form.error = t('monitorForm.errorUrl')
       return
     }
   } else if (!form.host.trim()) {
-    form.error = 'Enter the target hostname or IP address.'
+    form.error = t('monitorForm.errorHost')
     return
   }
 
-  const input: MonitorInput = {
-    name: form.name.trim(), type: form.type, config: buildConfig(),
-    intervalSeconds: Number(form.intervalSeconds), failureThreshold: Number(form.failureThreshold), successThreshold: Number(form.successThreshold),
-  }
-  if (props.monitor) {
-    updateMonitor(props.monitor.id, input)
-    const updated = getMonitor(props.monitor.id)
-    if (updated) emit('saved', updated)
-  } else {
-    emit('saved', createMonitor(input))
+  form.submitting = true
+  try {
+    const input: MonitorInput = {
+      name: form.name.trim(), type: form.type, config: buildConfig(),
+      intervalSeconds: Number(form.intervalSeconds), failureThreshold: Number(form.failureThreshold), successThreshold: Number(form.successThreshold),
+    }
+    const saved = props.monitor ? await updateMonitor(props.monitor.id, input) : await createMonitor(input)
+    if (saved) emit('saved', saved)
+  } catch (cause) {
+    form.error = cause instanceof Error ? cause.message : t('monitorForm.errorSave')
+  } finally {
+    form.submitting = false
   }
 }
 </script>
@@ -110,8 +120,8 @@ function submit() {
 <template>
   <form class="space-y-7 p-6" @submit.prevent="submit">
     <section>
-      <p class="eyebrow mb-3">01 / Monitor type</p>
-      <div class="grid gap-2 sm:grid-cols-3">
+      <p class="eyebrow mb-3">{{ t('monitorForm.sectionType') }}</p>
+      <div class="grid gap-2 sm:grid-cols-2">
         <button
           v-for="type in types"
           :key="type.value"
@@ -128,34 +138,34 @@ function submit() {
     </section>
 
     <section>
-      <p class="eyebrow mb-3">02 / Target</p>
+      <p class="eyebrow mb-3">{{ t('monitorForm.sectionTarget') }}</p>
       <div class="space-y-4">
         <label class="block">
-          <span class="field-label">Display name</span>
-          <input v-model="form.name" class="field" placeholder="e.g. Production API" autocomplete="off">
+          <span class="field-label">{{ t('monitorForm.displayName') }}</span>
+          <input v-model="form.name" class="field" :placeholder="t('monitorForm.displayNamePlaceholder')" autocomplete="off">
         </label>
 
         <template v-if="form.type === 'http'">
           <label class="block">
-            <span class="field-label">URL</span>
-            <input v-model="form.url" class="field font-mono text-xs" placeholder="https://example.com/health" spellcheck="false">
+            <span class="field-label">{{ t('monitorForm.url') }}</span>
+            <input v-model="form.url" class="field font-mono text-xs" :placeholder="t('monitorForm.urlPlaceholder')" spellcheck="false">
           </label>
           <div class="grid gap-4 sm:grid-cols-2">
+            <div class="block">
+              <span class="field-label">{{ t('monitorForm.method') }}</span>
+              <AppSelect v-model="form.method" :options="methods.map((method) => ({ value: method, label: method }))" :aria-label="t('monitorForm.method')" />
+            </div>
             <label class="block">
-              <span class="field-label">Method</span>
-              <select v-model="form.method" class="field"><option v-for="method in ['GET', 'POST', 'HEAD', 'PUT', 'PATCH', 'DELETE']" :key="method">{{ method }}</option></select>
-            </label>
-            <label class="block">
-              <span class="field-label">Expected status codes</span>
-              <input v-model="form.expectedStatusCodes" class="field font-mono text-xs" placeholder="200, 204">
+              <span class="field-label">{{ t('monitorForm.expectedStatusCodes') }}</span>
+              <input v-model="form.expectedStatusCodes" class="field font-mono text-xs" :placeholder="t('monitorForm.expectedStatusCodesPlaceholder')">
             </label>
           </div>
           <label class="block">
-            <span class="field-label">Headers <span class="font-normal text-muted">— one per line</span></span>
-            <textarea v-model="form.headers" class="field min-h-20 resize-y font-mono text-xs" placeholder="Authorization: Bearer …" spellcheck="false" />
+            <span class="field-label">{{ t('monitorForm.headers') }} <span class="font-normal text-muted">{{ t('monitorForm.headersHint') }}</span></span>
+            <textarea v-model="form.headers" class="field min-h-20 resize-y font-mono text-xs" :placeholder="t('monitorForm.headersPlaceholder')" spellcheck="false" />
           </label>
           <label v-if="!['GET', 'HEAD'].includes(form.method)" class="block">
-            <span class="field-label">Request body <span class="font-normal text-muted">— optional</span></span>
+            <span class="field-label">{{ t('monitorForm.requestBody') }} <span class="font-normal text-muted">{{ t('monitorForm.requestBodyHint') }}</span></span>
             <textarea v-model="form.body" class="field min-h-20 resize-y font-mono text-xs" placeholder='{"source":"mone"}' spellcheck="false" />
           </label>
         </template>
@@ -163,50 +173,55 @@ function submit() {
         <template v-else>
           <div class="grid gap-4 sm:grid-cols-[1fr_140px]">
             <label class="block">
-              <span class="field-label">Hostname or IP</span>
-              <input v-model="form.host" class="field font-mono text-xs" placeholder="example.com" spellcheck="false">
+              <span class="field-label">{{ t('monitorForm.host') }}</span>
+              <input v-model="form.host" class="field font-mono text-xs" :placeholder="t('monitorForm.hostPlaceholder')" spellcheck="false">
             </label>
             <label class="block">
-              <span class="field-label">Port</span>
+              <span class="field-label">{{ t('monitorForm.port') }}</span>
               <input v-model="form.port" type="number" min="1" max="65535" class="field font-mono text-xs">
             </label>
           </div>
-          <label v-if="form.type === 'ssl'" class="block">
-            <span class="field-label">Expiry alert threshold</span>
-            <div class="flex items-center gap-3"><input v-model="form.expiryThresholdDays" type="number" min="1" max="365" class="field max-w-32 font-mono text-xs"><span class="text-sm text-muted">days before expiry</span></div>
-          </label>
         </template>
       </div>
     </section>
 
     <section>
-      <p class="eyebrow mb-3">03 / Check policy</p>
+      <p class="eyebrow mb-3">{{ t('monitorForm.sectionPolicy') }}</p>
       <div class="grid gap-4 sm:grid-cols-2">
+        <div class="block">
+          <span class="field-label">{{ t('monitorForm.interval') }}</span>
+          <AppSelect v-model="form.intervalSeconds" :options="intervals" :aria-label="t('monitorForm.interval')" />
+        </div>
         <label class="block">
-          <span class="field-label">Check interval</span>
-          <select v-model="form.intervalSeconds" class="field">
-            <option :value="30">Every 30 seconds</option><option :value="60">Every minute</option><option :value="120">Every 2 minutes</option><option :value="180">Every 3 minutes</option><option :value="300">Every 5 minutes</option><option :value="600">Every 10 minutes</option><option :value="3600">Every hour</option>
-          </select>
-        </label>
-        <label v-if="form.type !== 'ssl'" class="block">
-          <span class="field-label">Timeout</span>
-          <div class="relative"><input v-model="form.timeoutMs" type="number" min="1000" max="30000" step="1000" class="field pr-12 font-mono text-xs"><span class="absolute right-3 top-2.5 text-xs text-muted">ms</span></div>
-        </label>
-        <label class="block">
-          <span class="field-label">Failure threshold</span>
-          <div class="flex items-center gap-3"><input v-model="form.failureThreshold" type="number" min="1" max="10" class="field font-mono text-xs"><span class="shrink-0 text-xs text-muted">failed checks</span></div>
+          <span class="field-label">{{ t('monitorForm.timeout') }}</span>
+          <div class="relative">
+            <input v-model="form.timeoutMs" type="number" min="1000" max="30000" step="1000" class="field pr-14 font-mono text-xs">
+            <span class="absolute right-3 top-2.5 text-xs text-muted">{{ t('common.ms') }}</span>
+          </div>
         </label>
         <label class="block">
-          <span class="field-label">Recovery threshold</span>
-          <div class="flex items-center gap-3"><input v-model="form.successThreshold" type="number" min="1" max="10" class="field font-mono text-xs"><span class="shrink-0 text-xs text-muted">successful checks</span></div>
+          <span class="field-label">{{ t('monitorForm.failureThreshold') }}</span>
+          <div class="flex items-center gap-3">
+            <input v-model="form.failureThreshold" type="number" min="1" max="10" class="field font-mono text-xs">
+            <span class="shrink-0 text-xs text-muted">{{ t('monitorForm.failureThresholdHint') }}</span>
+          </div>
+        </label>
+        <label class="block">
+          <span class="field-label">{{ t('monitorForm.successThreshold') }}</span>
+          <div class="flex items-center gap-3">
+            <input v-model="form.successThreshold" type="number" min="1" max="10" class="field font-mono text-xs">
+            <span class="shrink-0 text-xs text-muted">{{ t('monitorForm.successThresholdHint') }}</span>
+          </div>
         </label>
       </div>
     </section>
 
     <p v-if="form.error" class="rounded-xl border border-down/20 bg-down/5 px-4 py-3 text-sm text-down" role="alert">{{ form.error }}</p>
     <div class="flex items-center justify-end gap-2 border-t border-line pt-5">
-      <button type="button" class="button-secondary" @click="emit('cancel')">Cancel</button>
-      <button type="submit" class="button-primary">{{ monitor ? 'Save changes' : 'Create monitor' }}</button>
+      <button type="button" class="button-secondary" @click="emit('cancel')">{{ t('common.cancel') }}</button>
+      <button type="submit" class="button-primary" :disabled="form.submitting">
+        {{ monitor ? (form.submitting ? t('monitorForm.saving') : t('monitorForm.save')) : (form.submitting ? t('monitorForm.creating') : t('monitorForm.create')) }}
+      </button>
     </div>
   </form>
 </template>

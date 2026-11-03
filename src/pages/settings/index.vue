@@ -1,56 +1,85 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Check, Database, RotateCcw, Save, ShieldCheck } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 import PageHeader from '../../components/common/PageHeader.vue'
-import AppModal from '../../components/common/AppModal.vue'
+import AppSelect from '../../components/ui/AppSelect.vue'
+import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
+import { toast } from '../../composables/useToast'
 import { useMone } from '../../composables/useMone'
 
 const { resetDemo } = useMone()
-const workspaceName = ref('Personal workspace')
+const { t } = useI18n()
+const workspaceName = ref(t('settings.defaultWorkspaceName'))
 const timezone = ref('UTC')
-const saved = ref(false)
-const confirmingReset = ref(false)
+const savedFlash = ref(false)
+const resetOpen = ref(false)
+const timezones = ['UTC', 'Asia/Shanghai', 'America/Los_Angeles', 'Europe/London'].map((value) => ({ value, label: value }))
+const retention = computed(() => [
+  { label: t('settings.retentionRaw'), value: t('settings.retentionRawValue') },
+  { label: t('settings.retentionIncidents'), value: t('settings.retentionIncidentsValue') },
+  { label: t('settings.retentionLogs'), value: t('settings.retentionLogsValue') },
+])
+
 function save() {
-  saved.value = true
-  window.setTimeout(() => saved.value = false, 1800)
+  savedFlash.value = true
+  window.setTimeout(() => { savedFlash.value = false }, 1800)
+  toast(t('toasts.preferencesSaved'))
 }
+
 function reset() {
   resetDemo()
-  confirmingReset.value = false
+  toast(t('toasts.demoReset'))
 }
 </script>
 
 <template>
   <div class="max-w-4xl">
-    <PageHeader eyebrow="Configuration / General" title="Settings" description="Workspace preferences, data policy, and local demo controls." />
+    <PageHeader :eyebrow="t('settings.eyebrow')" :title="t('settings.title')" :description="t('settings.description')" />
 
     <section class="surface mb-5 p-5 sm:p-6">
-      <div class="mb-6"><h2 class="text-sm font-bold">Workspace</h2><p class="mt-1 text-xs text-muted">Basic preferences for this monitoring workspace.</p></div>
+      <div class="mb-6"><h2 class="text-sm font-bold">{{ t('settings.workspaceTitle') }}</h2><p class="mt-1 text-xs text-muted">{{ t('settings.workspaceSubtitle') }}</p></div>
       <div class="grid gap-5 sm:grid-cols-2">
-        <label><span class="field-label">Workspace name</span><input v-model="workspaceName" class="field"></label>
-        <label><span class="field-label">Display timezone</span><select v-model="timezone" class="field"><option>UTC</option><option>Asia/Shanghai</option><option>America/Los_Angeles</option><option>Europe/London</option></select></label>
+        <label class="block"><span class="field-label">{{ t('settings.workspaceName') }}</span><input v-model="workspaceName" class="field"></label>
+        <div class="block">
+          <span class="field-label">{{ t('settings.timezone') }}</span>
+          <AppSelect v-model="timezone" :options="timezones" :aria-label="t('settings.timezone')" />
+        </div>
       </div>
-      <div class="mt-6 flex justify-end"><button class="button-primary" @click="save"><Check v-if="saved" :size="16" /><Save v-else :size="16" />{{ saved ? 'Saved' : 'Save preferences' }}</button></div>
+      <div class="mt-6 flex justify-end">
+        <button class="button-primary" @click="save"><Check v-if="savedFlash" :size="16" /><Save v-else :size="16" />{{ savedFlash ? t('common.saved') : t('settings.save') }}</button>
+      </div>
     </section>
 
     <section class="surface mb-5 p-5 sm:p-6">
-      <div class="mb-5 flex items-center gap-3"><span class="flex size-9 items-center justify-center rounded-lg bg-up/8 text-up"><Database :size="18" /></span><div><h2 class="text-sm font-bold">Data retention</h2><p class="mt-1 text-xs text-muted">Planned policy for the Supabase-backed release.</p></div></div>
+      <div class="mb-5 flex items-center gap-3">
+        <span class="flex size-9 items-center justify-center rounded-lg bg-up/8 text-up"><Database :size="18" /></span>
+        <div><h2 class="text-sm font-bold">{{ t('settings.retentionTitle') }}</h2><p class="mt-1 text-xs text-muted">{{ t('settings.retentionSubtitle') }}</p></div>
+      </div>
       <div class="grid gap-3 sm:grid-cols-3">
-        <div class="rounded-xl border border-line bg-canvas p-4"><p class="eyebrow">Raw checks</p><p class="mt-2 font-mono text-xl">14 days</p></div>
-        <div class="rounded-xl border border-line bg-canvas p-4"><p class="eyebrow">Incidents</p><p class="mt-2 font-mono text-xl">Indefinite</p></div>
-        <div class="rounded-xl border border-line bg-canvas p-4"><p class="eyebrow">Delivery logs</p><p class="mt-2 font-mono text-xl">30 days</p></div>
+        <div v-for="item in retention" :key="item.label" class="rounded-xl border border-line bg-canvas p-4">
+          <p class="eyebrow">{{ item.label }}</p>
+          <p class="mt-2 font-mono text-xl">{{ item.value }}</p>
+        </div>
       </div>
     </section>
 
     <section class="surface p-5 sm:p-6">
       <div class="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-        <div class="flex items-center gap-3"><span class="flex size-9 items-center justify-center rounded-lg bg-canvas text-muted"><ShieldCheck :size="18" /></span><div><h2 class="text-sm font-bold">Demo data</h2><p class="mt-1 text-xs text-muted">Restore the original monitors, incidents, and channels.</p></div></div>
-        <button class="button-secondary shrink-0" @click="confirmingReset = true"><RotateCcw :size="15" /> Reset demo</button>
+        <div class="flex items-center gap-3">
+          <span class="flex size-9 items-center justify-center rounded-lg bg-canvas text-muted"><ShieldCheck :size="18" /></span>
+          <div><h2 class="text-sm font-bold">{{ t('settings.demoTitle') }}</h2><p class="mt-1 text-xs text-muted">{{ t('settings.demoSubtitle') }}</p></div>
+        </div>
+        <button class="button-secondary shrink-0" @click="resetOpen = true"><RotateCcw :size="15" /> {{ t('settings.reset') }}</button>
       </div>
     </section>
 
-    <AppModal v-if="confirmingReset" title="Reset local demo data?" @close="confirmingReset = false">
-      <div class="p-6"><p class="text-sm leading-6 text-muted">All monitor and notification changes stored in this browser will be replaced with the original sample data.</p><div class="mt-6 flex justify-end gap-2"><button class="button-secondary" @click="confirmingReset = false">Cancel</button><button class="button-primary !bg-down" @click="reset">Reset data</button></div></div>
-    </AppModal>
+    <ConfirmDialog
+      v-model:open="resetOpen"
+      :title="t('settings.resetTitle')"
+      :description="t('settings.resetBody')"
+      :confirm-label="t('settings.resetConfirm')"
+      @confirm="reset"
+    />
   </div>
 </template>

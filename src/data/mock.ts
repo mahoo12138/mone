@@ -32,15 +32,6 @@ export function createMockMonitors(): Monitor[] {
       lastCheckAt: isoMinutesAgo(3), createdAt: isoMinutesAgo(60 * 24 * 76),
     },
     {
-      id: 'edge-certificate',
-      name: 'Edge certificate',
-      type: 'ssl',
-      config: { host: 'example.com', port: 443, expiryThresholdDays: 14 },
-      status: 'active', currentState: 'up', intervalSeconds: 3600, failureThreshold: 1, successThreshold: 1,
-      responseTimeMs: 86, uptime24h: 100, uptime7d: 100, uptime30d: 100,
-      lastCheckAt: isoMinutesAgo(12), createdAt: isoMinutesAgo(60 * 24 * 68),
-    },
-    {
       id: 'billing-webhook',
       name: 'Billing webhook',
       type: 'http',
@@ -66,14 +57,14 @@ export function createMockIncidents(): Incident[] {
     { id: 'inc-1048', monitorId: 'customer-portal', status: 'ongoing', cause: 'HTTP 503 — Service Unavailable', startedAt: isoMinutesAgo(47), resolvedAt: null, durationSeconds: null },
     { id: 'inc-1047', monitorId: 'search-service', status: 'resolved', cause: 'Connection timeout after 6,000 ms', startedAt: isoMinutesAgo(60 * 29), resolvedAt: isoMinutesAgo(60 * 29 - 18), durationSeconds: 1080 },
     { id: 'inc-1046', monitorId: 'core-api', status: 'resolved', cause: 'Expected HTTP 200, received 502', startedAt: isoMinutesAgo(60 * 74), resolvedAt: isoMinutesAgo(60 * 74 - 7), durationSeconds: 420 },
-    { id: 'inc-1045', monitorId: 'customer-portal', status: 'resolved', cause: 'TLS certificate chain verification failed', startedAt: isoMinutesAgo(60 * 24 * 9), resolvedAt: isoMinutesAgo(60 * 24 * 9 - 34), durationSeconds: 2040 },
+    { id: 'inc-1045', monitorId: 'customer-portal', status: 'resolved', cause: 'Upstream connect error after deploy', startedAt: isoMinutesAgo(60 * 24 * 9), resolvedAt: isoMinutesAgo(60 * 24 * 9 - 34), durationSeconds: 2040 },
   ]
 }
 
 export function createMockChannels(): NotificationChannel[] {
   return [
-    { id: 'telegram-ops', name: 'Ops on Telegram', type: 'telegram', target: 'Chat ID •••• 4821', enabled: true, createdAt: isoMinutesAgo(60 * 24 * 30) },
-    { id: 'discord-team', name: 'Team Discord', type: 'discord', target: 'Webhook •••• 9f2a', enabled: false, createdAt: isoMinutesAgo(60 * 24 * 12) },
+    { id: 'telegram-ops', name: 'Ops on Telegram', type: 'telegram', target: 'Chat ID •••• 4821', config: { bot_token: 'demo', chat_id: '12344821' }, enabled: true, createdAt: isoMinutesAgo(60 * 24 * 30) },
+    { id: 'discord-team', name: 'Team Discord', type: 'discord', target: 'Webhook •••• 9f2a', config: { webhook_url: 'https://discord.test/9f2a' }, enabled: false, createdAt: isoMinutesAgo(60 * 24 * 12) },
   ]
 }
 

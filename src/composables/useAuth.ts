@@ -33,15 +33,19 @@ export function useAuth() {
   void initAuth()
 
   async function signIn(email: string, password: string) {
-    if (!isSupabaseConfigured) return true
+    if (!isSupabaseConfigured) return { ok: true, message: '' }
     const { error } = await getSupabase().auth.signInWithPassword({ email, password })
-    return !error
+    return { ok: !error, message: error?.message ?? '' }
   }
 
   async function signUp(email: string, password: string) {
-    if (!isSupabaseConfigured) return true
-    const { error } = await getSupabase().auth.signUp({ email, password })
-    return !error
+    if (!isSupabaseConfigured) return { ok: true, message: '' }
+    const { error } = await getSupabase().auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/` },
+    })
+    return { ok: !error, message: error?.message ?? '' }
   }
 
   async function signOut() {

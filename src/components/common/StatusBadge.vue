@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ArrowDownRight, ArrowUpRight, Minus, Pause } from '@lucide/vue'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
   state: 'up' | 'down' | 'pending'
@@ -8,7 +9,8 @@ const props = defineProps<{
   compact?: boolean
 }>()
 
-const label = computed(() => props.paused ? 'Paused' : ({ up: 'Operational', down: 'Down', pending: 'Pending' })[props.state])
+const { t } = useI18n()
+const label = computed(() => t(props.paused ? 'status.paused' : `status.${props.state}`))
 const icon = computed(() => props.paused ? Pause : ({ up: ArrowUpRight, down: ArrowDownRight, pending: Minus })[props.state])
 </script>
 
