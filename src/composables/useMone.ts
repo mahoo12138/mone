@@ -33,6 +33,7 @@ function loadDemoState(): MoneState {
 const state = reactive<MoneState>(isSupabaseConfigured ? { monitors: [], incidents: [], channels: [] } : loadDemoState())
 export const loading = ref(false)
 export const error = ref('')
+export const dataVersion = ref(0)
 let initialized = false
 
 function setError(cause: unknown) {
@@ -47,8 +48,11 @@ async function refresh() {
     state.channels = []
     return
   }
-  loading.value = true
-  error.value = ''
+  // Only the first load may blank the page; background refreshes keep the last good
+  // data visible so a transient failure does not hide the dashboard.
+  const firstLoad = state.monitors.length === 0
+  if (firstLoad) loading.value = true
+  if (firstLoad) error.value = ''
   try {
     const [monitors, incidents, channels] = await Promise.all([
       monitorService.listMonitors(),
@@ -58,11 +62,28 @@ async function refresh() {
     state.monitors = monitors
     state.incidents = incidents
     state.channels = channels
+    error.value = ''
+    dataVersion.value += 1
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('errors.loadFailed')
+    if (firstLoad) error.value = cause instanceof Error ? cause.message : t('errors.loadFailed')
   } finally {
     loading.value = false
   }
+}
+
+const refreshIntervalMs = 30_000
+let timer: ReturnType<typeof setInterval> | undefined
+
+function startAutoRefresh() {
+  if (timer !== undefined) return
+  timer = setInterval(() => {
+    // A hidden tab has no reader; refresh again the moment it becomes visible.
+    if (document.visibilityState === 'hidden') return
+    void refresh()
+  }, refreshIntervalMs)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void refresh()
+  })
 }
 
 export function initMone() {
@@ -70,6 +91,7 @@ export function initMone() {
   initialized = true
   if (isSupabaseConfigured) {
     void refresh()
+    startAutoRefresh()
     watch(session, () => { void refresh() })
   } else {
     watch(state, (value) => {

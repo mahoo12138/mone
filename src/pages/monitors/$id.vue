@@ -14,7 +14,7 @@ import MonitorForm from '../../components/monitors/MonitorForm.vue'
 import ResponseChart from '../../components/charts/ResponseChart.vue'
 import HeartbeatBar from '../../components/charts/HeartbeatBar.vue'
 import { toast } from '../../composables/useToast'
-import { useMone } from '../../composables/useMone'
+import { useMone, dataVersion } from '../../composables/useMone'
 import { listCheckResults } from '../../services/checkResults'
 import { isSupabaseConfigured } from '../../services/supabase'
 import { createCheckResults } from '../../data/mock'
@@ -40,7 +40,7 @@ const rangeOptions = computed(() => [
 ])
 const uptime = computed(() => monitor.value ? ({ '24h': monitor.value.uptime24h, '7d': monitor.value.uptime7d, '30d': monitor.value.uptime30d })[range.value] : 0)
 
-watch([monitor, () => state.monitors.length], async () => {
+watch([monitor, dataVersion], async () => {
   if (!monitor.value) {
     results.value = []
     return
@@ -49,11 +49,12 @@ watch([monitor, () => state.monitors.length], async () => {
     results.value = monitor.value.lastCheckAt ? createCheckResults(monitor.value) : []
     return
   }
-  resultsLoading.value = true
+  // Keep the previous chart visible while a background refresh is in flight.
+  if (!results.value.length) resultsLoading.value = true
   try {
     results.value = await listCheckResults(monitor.value.id)
   } catch {
-    results.value = []
+    if (!results.value.length) results.value = []
   } finally {
     resultsLoading.value = false
   }
