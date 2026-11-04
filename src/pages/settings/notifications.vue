@@ -93,7 +93,7 @@ async function test(channel: NotificationChannel) {
 </script>
 
 <template>
-  <div class="max-w-5xl">
+  <div class="page-narrow">
     <PageHeader :eyebrow="t('notifications.eyebrow')" :title="t('notifications.title')" :description="t('notifications.description')">
       <button class="button-primary" @click="addOpen = true"><Plus :size="17" /> {{ t('notifications.addChannel') }}</button>
     </PageHeader>

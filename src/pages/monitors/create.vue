@@ -15,7 +15,7 @@ function saved(monitor: { id: string; name: string }) {
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl">
+  <div class="page-narrow">
     <RouterLink to="/monitors" class="mb-6 inline-flex items-center gap-2 text-xs font-bold text-muted hover:text-ink"><ArrowLeft :size="15" /> {{ t('monitorDetail.backToMonitors') }}</RouterLink>
     <header class="mb-6">
       <p class="eyebrow mb-2">{{ t('monitorsPage.createEyebrow') }}</p>

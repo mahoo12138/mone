@@ -34,7 +34,7 @@ function reset() {
 </script>
 
 <template>
-  <div class="max-w-4xl">
+  <div class="page-narrow">
     <PageHeader :eyebrow="t('settings.eyebrow')" :title="t('settings.title')" :description="t('settings.description')" />
 
     <section class="surface mb-5 p-5 sm:p-6">

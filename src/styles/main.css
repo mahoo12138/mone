@@ -70,6 +70,11 @@ textarea:focus-visible {
     @apply rounded-2xl border border-line bg-paper;
   }
 
+  /* Forms and settings share this measure; data pages fill the shell instead. */
+  .page-narrow {
+    @apply max-w-5xl;
+  }
+
   .button-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 hover:bg-ink disabled:pointer-events-none disabled:opacity-50;
   }
