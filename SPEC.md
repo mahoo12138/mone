@@ -250,6 +250,21 @@ Dashboard 是用户登录后的首页。
 
 MVP 阶段先支持 Telegram 和 Discord。
 
+> 2026-11-05 决策：邮件通知渠道下线，渠道类型收敛为 Telegram 与 Discord。
+
+原因：告警由 Supabase Edge Functions 投递，而该运行时无法完成 SMTP 会话。实测结论——
+
+- `Deno.connect()` 能连上 `smtp.qq.com` 的 587/465/443（TCP 握手约 340ms），但服务器始终不发送
+  `220` 欢迎行，读取在 45 秒预算后超时；25 端口则直接无法连接。
+- 同一组凭据在本地机器上通过 SMTP 发信正常，所以受阻的是运行时的出站会话，不是凭据或代码。
+- Telegram 与 Discord 走 HTTPS 443，不受影响。
+
+需要注意这与注册/找回密码邮件是两条独立路径：那类邮件由 Supabase Auth 服务自己发出，可以正常
+使用自定义 SMTP 与自定义模板。下线的只是 Mone 自己发起的告警邮件。
+
+如果将来需要邮件通知，应把投递执行层换到能建立 SMTP 连接的环境（例如自建 worker），或改用走
+443 端口的 HTTPS 邮件 API，而不是在 Edge Functions 里继续尝试。
+
 通知场景：
 
 - 监控连续失败，进入故障状态。
@@ -954,6 +969,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 |---|---|---|
 | TCP 出站限制 | Edge Runtime 可能限制原始 TCP 连接 | Phase 0 优先验证 |
 | SSL 证书读取 | 运行时读不到证书有效期 | 已实测确认不可行，SSL 监控移除 |
+| 告警邮件投递 | Edge Runtime 无法完成 SMTP 会话 | 已实测确认不可行，邮件渠道下线 |
 | SSRF | 用户可能配置内网或特殊 IP 作为目标 | DNS、IP、Redirect 多层校验 |
 | 数据库容量 | 高频检查会产生大量记录 | 原始数据清理和历史聚合 |
 | Cron 并发 | 上一次任务未结束时下一次任务可能启动 | 锁、租约和批量领取 |
