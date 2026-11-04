@@ -30,7 +30,7 @@ function loadDemoState(): MoneState {
   return initialState()
 }
 
-const state = reactive<MoneState>(isSupabaseConfigured ? { monitors: [], incidents: [], channels: [] } : loadDemoState())
+export const state = reactive<MoneState>(isSupabaseConfigured ? { monitors: [], incidents: [], channels: [] } : loadDemoState())
 export const loading = ref(false)
 export const error = ref('')
 export const dataVersion = ref(0)

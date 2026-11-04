@@ -14,7 +14,7 @@ type State = 'verifying' | 'success' | 'error'
 const state = ref<State>('verifying')
 const message = ref('')
 
-const type = computed(() => String(route.query.type ?? 'signup') as EmailOtpType)
+const otpType = String(route.query.type ?? 'signup') as EmailOtpType
 
 async function verify() {
   const tokenHash = String(route.query.token_hash ?? '')
@@ -24,7 +24,7 @@ async function verify() {
     return
   }
   state.value = 'verifying'
-  const { error } = await getSupabase().auth.verifyOtp({ token_hash: tokenHash, type })
+  const { error } = await getSupabase().auth.verifyOtp({ token_hash: tokenHash, type: otpType })
   if (error) {
     state.value = 'error'
     message.value = error.message

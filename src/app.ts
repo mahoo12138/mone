@@ -10,15 +10,17 @@ import AppProviders from './components/ui/AppProviders.vue'
 const titleKeys: Record<string, string> = {
   '/': 'app.pageNames.overview',
   '/login': 'app.pageNames.login',
+  '/verify': 'app.pageNames.verify',
   '/monitors': 'app.pageNames.monitors',
   '/monitors/create': 'app.pageNames.create',
   '/incidents': 'app.pageNames.incidents',
   '/settings': 'app.pageNames.settings',
   '/settings/notifications': 'app.pageNames.notifications',
+  '/settings/status-page': 'app.pageNames.statusPage',
 }
 
 function documentTitle(pathname: string) {
-  const key = titleKeys[pathname] ?? (pathname.startsWith('/monitors/') ? 'app.pageNames.monitorDetail' : 'app.pageNames.notFound')
+  const key = titleKeys[pathname] ?? (pathname.startsWith('/status/') ? 'app.pageNames.publicStatus' : pathname.startsWith('/monitors/') ? 'app.pageNames.monitorDetail' : 'app.pageNames.notFound')
   return t('app.title', { page: t(key) })
 }
 
@@ -31,7 +33,8 @@ export default (ctx: Context) => {
   ctx.on('app/mount', () => {
     ctx.$router.router?.beforeEach(async (to) => {
       await initAuth()
-      if (!session.value && to.path !== '/login') return '/login'
+      const isPublic = to.path.startsWith('/status/') || to.path === '/verify'
+      if (!session.value && to.path !== '/login' && !isPublic) return '/login'
       if (session.value && to.path === '/login') return '/'
     })
   })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from '@cormijs/vue/client'
-import { Activity, BellRing, Check, ChevronDown, ChevronRight, Globe, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Settings, Siren, X } from '@lucide/vue'
+import { Activity, BellRing, Check, ChevronDown, ChevronRight, Globe, Globe2, LayoutDashboard, ListChecks, LogOut, Menu, Plus, Settings, Siren, X } from '@lucide/vue'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -25,7 +25,7 @@ const { t } = useI18n()
 const mobileOpen = ref(false)
 const { downMonitors, loading, error, refresh } = useMone()
 const { signOut } = useAuth()
-const isLogin = computed(() => route.path === '/login')
+const isBarePage = computed(() => route.path === '/login' || route.path === '/verify' || route.path.startsWith('/status/'))
 const navItems = computed(() => [
   { to: '/', label: t('nav.overview'), icon: LayoutDashboard, exact: true },
   { to: '/monitors', label: t('nav.monitors'), icon: ListChecks },
@@ -33,6 +33,7 @@ const navItems = computed(() => [
 ])
 const configItems = computed(() => [
   { to: '/settings/notifications', label: t('nav.notifications'), icon: BellRing },
+  { to: '/settings/status-page', label: t('nav.statusPage'), icon: Globe2 },
   { to: '/settings', label: t('nav.settings'), icon: Settings },
 ])
 
@@ -43,7 +44,7 @@ async function leave() {
 </script>
 
 <template>
-  <RouterView v-if="isLogin" />
+  <RouterView v-if="isBarePage" />
   <div v-else class="min-h-screen bg-canvas">
     <button v-if="mobileOpen" class="fixed inset-0 z-30 bg-forest/40 backdrop-blur-sm lg:hidden" :aria-label="t('nav.closeNavigation')" @click="mobileOpen = false" />
 

@@ -75,3 +75,36 @@ export interface NotificationChannelInput {
   type: 'telegram' | 'discord'
   config: Record<string, string>
 }
+
+export interface StatusPageConfig {
+  enabled: boolean
+  slug: string
+  title: string
+  description: string
+  monitorIds: string[]
+}
+
+export interface PublicStatusCheck {
+  status: 'up' | 'down'
+  checkedAt: string
+}
+
+export interface PublicStatusMonitor {
+  id: string
+  name: string
+  type: MonitorType
+  status: MonitorStatus
+  currentState: MonitorState
+  uptime24h: number
+  uptime7d: number
+  uptime30d: number
+  lastCheckAt: string | null
+  checks: PublicStatusCheck[]
+}
+
+export interface PublicStatusPage {
+  title: string
+  description: string
+  monitors: PublicStatusMonitor[]
+  incidents: Incident[]
+}
