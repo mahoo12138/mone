@@ -2,7 +2,7 @@
 
 > Lightweight Uptime Monitoring
 
-Mone 是一个轻量级、可自托管的服务可用性监控平台。用户无需在被监控服务器上安装任何 Agent，即可通过公网对 HTTP、TCP 和 SSL 服务进行定时探测，并通过 Web Dashboard 管理监控项、查看可用性数据和接收故障通知。
+Mone 是一个轻量级、可自托管的服务可用性监控平台。用户无需在被监控服务器上安装任何 Agent，即可通过公网对 HTTP 和 TCP 服务进行定时探测，并通过 Web Dashboard 管理监控项、查看可用性数据和接收故障通知。
 
 ## 1. 项目目标
 
@@ -63,7 +63,7 @@ Mone 的设计目标是提供一个轻量、简单、低成本的外部服务监
                                     │
                         ┌───────────┼───────────┐
                         ▼           ▼           ▼
-                     HTTP(S)      TCP         SSL/TLS
+                     HTTP(S)         TCP
                         │           │           │
                         └───────────┼───────────┘
                                     │
@@ -134,33 +134,22 @@ HTTP 检查不仅应该判断是否返回 200，还应允许用户验证业务�
 
 需要明确：TCP 检查成功仅代表 TCP 连接建立，不代表目标应用的业务逻辑正常。
 
-#### SSL / TLS Monitoring
+#### SSL / TLS Monitoring（已移除）
 
-检测 HTTPS 服务的 SSL/TLS 证书状态。
+> 2026-11-04 决策：SSL 证书监控不再实现，Mone 的监控类型收敛为 HTTP 与 TCP。
 
-配置项：
+原因：Supabase Edge Functions 的运行时读不到证书有效期。实测结论——
 
-| 配置项 | 说明 |
-|---|---|
-| Name | 监控名称 |
-| Host | 证书对应的主机名 |
-| Port | TLS 端口，默认 443 |
-| Interval | 检查间隔 |
-| Expiry Threshold | 证书到期提前告警天数 |
+- `node:tls` 可用且 TLS 握手成功，但 `getPeerCertificate()` 只返回 `subject` 与 `subjectaltname`，
+  没有 `validTo` / `validFrom`，也没有 `raw` DER 可供自行解析；`getX509Certificate` 与
+  `getPeerX509Certificate` 都不存在。
+- `Deno.startTls` 握手成功，但 `handshake().peerCertificate` 是空对象。
 
-采集信息：
+到期告警是 SSL Monitor 的核心价值。缺少有效期后它退化成一次 TCP 连通性检查，与已有的
+TCP Monitor 重复，因此整体下线，而不是保留一个残缺版本。
 
-- 证书颁发者（Issuer）。
-- 证书主体（Subject）。
-- 生效时间（Valid From）。
-- 到期时间（Valid To）。
-- 剩余有效天数。
-- 主机名匹配状态。
-- 证书链验证状态。
-
-如果 HTTP 监控已经能够采集证书信息，可以考虑复用相关结果，但独立 SSL Monitor 仍然有意义，因为它可以在不关注 HTTP 业务响应的情况下单独跟踪证书状态。
-
-需要注意：通过 CDN 或代理访问 HTTPS 服务时，探测到的通常是 CDN 边缘证书，而不是源站证书。Mone 第一阶段监控的是公网入口实际暴露的证书。
+如果将来需要证书监控，应把探测执行层换到能完整读取 X.509 的运行环境（例如自建 Deno/Node
+worker），而不是继续在 Edge Functions 里尝试。
 
 ### 2.2 Dashboard
 
@@ -185,7 +174,7 @@ Dashboard 是用户登录后的首页。
 | 字段 | 说明 |
 |---|---|
 | Name | 监控名称 |
-| Type | HTTP / TCP / SSL |
+| Type | HTTP / TCP |
 | Status | 当前状态 |
 | Response Time | 最近响应时间 |
 | Uptime | 最近一段时间的可用率 |
@@ -240,7 +229,7 @@ Dashboard 是用户登录后的首页。
 
 展示关联的故障历史。
 
-对于 SSL Monitor，额外展示证书信息和剩余有效天数。
+（原 SSL Monitor 的证书信息区块已随监控类型一起移除。）
 
 ### 2.4 Monitor Management
 
@@ -265,8 +254,7 @@ MVP 阶段先支持 Telegram 和 Discord。
 
 - 监控连续失败，进入故障状态。
 - 服务恢复正常。
-- SSL 证书即将过期。
-- SSL 证书已过期。
+
 
 通知配置：
 
@@ -317,7 +305,7 @@ notification_deliveries
 |---|---|---|
 | id | UUID | 主键 |
 | name | TEXT | 监控名称 |
-| type | TEXT | http / tcp / ssl |
+| type | TEXT | http / tcp |
 | config | JSONB | 不同类型的监控配置 |
 | status | TEXT | active / paused |
 | current_state | TEXT | up / down / pending |
@@ -354,16 +342,6 @@ TCP：
 }
 ```
 
-SSL：
-
-```json
-{
-  "host": "example.com",
-  "port": 443,
-  "expiry_threshold_days": 14
-}
-```
-
 敏感配置不能直接以明文形式暴露给前端。后续如果需要保存认证头、请求体密钥或其他秘密信息，应独立设计加密存储和受控读取机制。
 
 ### 3.2 check_results
@@ -379,7 +357,7 @@ SSL：
 | status_code | INTEGER | HTTP 状态码，可为空 |
 | error_message | TEXT | 失败原因 |
 | checked_at | TIMESTAMPTZ | 检查时间 |
-| metadata | JSONB | 证书等扩展信息 |
+| metadata | JSONB | 响应字节数等扩展信息 |
 
 注意：
 
@@ -429,7 +407,7 @@ SSL：
 | id | UUID | 主键 |
 | incident_id | UUID | 关联故障事件 |
 | channel_id | UUID | 关联通知渠道 |
-| event_type | TEXT | down / recovered / ssl_expiring |
+| event_type | TEXT | down / recovered |
 | status | TEXT | pending / sent / failed |
 | attempts | INTEGER | 尝试次数 |
 | last_error | TEXT | 最近一次失败原因 |
@@ -452,7 +430,7 @@ run-due-checks
 
 1. 查询已经到达 `next_check_at` 的监控项。
 2. 领取一批到期任务。
-3. 执行对应的 HTTP、TCP 或 SSL 检查。
+3. 执行对应的 HTTP 或 TCP 检查。
 4. 保存检查结果。
 5. 更新监控项状态和下一次检查时间。
 6. 根据状态变化创建或恢复 Incident。
@@ -600,7 +578,6 @@ mone/
             ├── monitor-engine/
             │   ├── http.ts
             │   ├── tcp.ts
-            │   └── ssl.ts
             └── notifications/
                 ├── telegram.ts
                 └── discord.ts
@@ -734,9 +711,9 @@ Cormi 当前版本处于 RC 阶段，建议锁定依赖版本并提交 lockfile�
 - 验证前端读写 PostgreSQL。
 - 编写最小版 HTTP 探测函数。
 - 验证 Supabase Edge Function 的出站网络行为。
-- 验证 TCP 连接和 SSL/TLS 证书读取能力。
+- 验证 TCP 连接能力。
 
-**特别注意 TCP 和 SSL 的技术风险。**
+**特别注意 TCP 的技术风险。**
 
 Supabase Edge Functions 基于 Deno Runtime，不能仅凭本地 Node.js 测试成功就认定托管环境也支持原始 TCP/TLS 操作。
 
@@ -744,11 +721,11 @@ Supabase Edge Functions 基于 Deno Runtime，不能仅凭本地 Node.js 测试�
 
 - `Deno.connect()` 是否能连接公网目标端口。
 - TLS 握手是否能够正常完成。
-- 是否能够获取远端 X.509 证书。
-- 是否能够读取证书有效期和主机名信息。
 - 运行环境是否对出站网络或端口有额外限制。
 
-若 TCP 或 SSL 无法在 Supabase Edge Functions 中可靠运行，应在正式开发前调整探测执行层，而不是将不确定性留到项目后期。
+若 TCP 无法在 Supabase Edge Functions 中可靠运行，应在正式开发前调整探测执行层，而不是将不确定性留到项目后期。
+
+实测结果（2026-11-04）：`Deno.connect()` 可连接公网端口，`node:tls` 与 `Deno.startTls` 都能完成 TLS 握手；但两者都读不到证书有效期，因此 SSL 证书监控被移除（见 2.1）。
 
 阶段验收：
 
@@ -756,7 +733,7 @@ Supabase Edge Functions 基于 Deno Runtime，不能仅凭本地 Node.js 测试�
 - 前端能够部署到 Vercel。
 - Supabase Auth 和数据库访问正常。
 - HTTP 探测运行成功。
-- TCP、SSL 是否可行已经得到实际验证，或明确替代执行方案。
+- TCP 是否可行已经得到实际验证，或明确替代执行方案。
 
 ### Phase 1：基础 UI
 
@@ -808,13 +785,13 @@ Supabase Edge Functions 基于 Deno Runtime，不能仅凭本地 Node.js 测试�
 
 ### Phase 3：监控引擎
 
-目标：完成真实的 HTTP、TCP 和 SSL 检查。
+目标：完成真实的 HTTP 与 TCP 检查。
 
 任务：
 
 - 实现 HTTP Probe。
 - 实现 TCP Probe。
-- 实现 SSL Probe。
+
 - 实现统一的 Monitor Engine 接口。
 - 实现超时控制。
 - 实现错误处理。
@@ -841,7 +818,7 @@ Monitor Engine
     │
     ├── TCP Probe
     │
-    └── SSL Probe
+
 ```
 
 阶段验收：
@@ -876,7 +853,7 @@ Monitor Engine
 - 监控故障能够触发通知。
 - 服务恢复能够触发通知。
 - 通知失败可以记录和重试。
-- SSL 证书即将过期时能够触发提醒。
+
 
 ### Phase 5：数据维护与发布
 
@@ -976,12 +953,11 @@ SUPABASE_SERVICE_ROLE_KEY=
 | 风险 | 说明 | 处理方式 |
 |---|---|---|
 | TCP 出站限制 | Edge Runtime 可能限制原始 TCP 连接 | Phase 0 优先验证 |
-| SSL 证书读取 | TLS API 和 X.509 证书读取能力需要验证 | 通过实际集成测试确认 |
+| SSL 证书读取 | 运行时读不到证书有效期 | 已实测确认不可行，SSL 监控移除 |
 | SSRF | 用户可能配置内网或特殊 IP 作为目标 | DNS、IP、Redirect 多层校验 |
 | 数据库容量 | 高频检查会产生大量记录 | 原始数据清理和历史聚合 |
 | Cron 并发 | 上一次任务未结束时下一次任务可能启动 | 锁、租约和批量领取 |
 | 通知重复 | 状态变化和通知重试可能导致重复消息 | Incident 状态机和通知记录 |
-| CDN 证书 | 公网入口证书可能不是源站证书 | 明确监控对象和证书范围 |
 | Cormi 版本变化 | 当前框架版本可能处于 RC 阶段 | 锁定依赖版本并进行构建验证 |
 
 ### 10.1 监控平台自身的可用性
@@ -997,7 +973,7 @@ Mone 的监控能力依赖其自身部署平台。如果 Supabase 或相关服�
 - [ ] 用户能够登录 Dashboard。
 - [ ] 用户能够创建 HTTP 监控。
 - [ ] 用户能够创建 TCP 监控。
-- [ ] 用户能够创建 SSL 监控。
+
 - [ ] 用户能够编辑、删除和暂停监控。
 - [ ] 监控任务能够按照配置的间隔自动执行。
 - [ ] 检查结果能够持久化保存。
@@ -1007,7 +983,7 @@ Mone 的监控能力依赖其自身部署平台。如果 Supabase 或相关服�
 - [ ] 服务恢复后能够更新故障事件状态。
 - [ ] Telegram 通知能够正常工作。
 - [ ] Discord 通知能够正常工作。
-- [ ] SSL 证书即将过期时能够触发通知。
+
 - [ ] 具备基础的 SSRF 防护。
 - [ ] 具备数据库访问权限控制。
 - [ ] 具备检查记录清理机制。
@@ -1021,7 +997,7 @@ Mone 第一阶段以个人使用和基础监控能力为核心，不需要过早
 
 1. **优先完成核心闭环**：从创建监控项，到定时探测、保存结果、展示状态和发送通知，先打通完整流程。
 2. **保持架构轻量**：优先使用 Supabase 提供的托管能力，不引入不必要的独立服务。
-3. **提前验证技术风险**：尤其是 TCP 和 SSL 探测，必须先验证运行环境能力。
+3. **提前验证技术风险**：尤其是 TCP 与 TLS 探测，必须先验证运行环境能力。
 4. **做好数据生命周期管理**：监控数据会持续增长，不能忽略数据库容量。
 5. **保证安全边界**：监控系统天然具有访问用户指定目标的能力，必须重视 SSRF 和凭据保护。
 6. **避免过度设计**：单用户 MVP 不需要一开始就实现团队权限、复杂告警策略和多地区监控。
@@ -1032,4 +1008,4 @@ Mone 第一阶段以个人使用和基础监控能力为核心，不需要过早
 
 **Mone — Lightweight Uptime Monitoring**
 
-Monitor your services externally with HTTP, TCP, and SSL checks. Track availability, detect incidents, and receive notifications without installing agents on your servers.
+Monitor your services externally with HTTP and TCP checks. Track availability, detect incidents, and receive notifications without installing agents on your servers.

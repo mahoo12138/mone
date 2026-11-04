@@ -10,6 +10,7 @@ import IconTooltip from '../../components/ui/IconTooltip.vue'
 import EmptyState from '../../components/common/EmptyState.vue'
 import { toast } from '../../composables/useToast'
 import { useMone } from '../../composables/useMone'
+import { sendChannelTest } from '../../services/notifications'
 import type { NotificationChannel } from '../../types'
 
 const { state, addChannel, deleteChannel, toggleChannel } = useMone()
@@ -74,6 +75,21 @@ async function remove(channel: NotificationChannel) {
   if (!await runAction(() => deleteChannel(channel.id))) return
   toast(t('toasts.channelDeleted'), { description: channel.name })
 }
+
+const testing = ref('')
+
+async function test(channel: NotificationChannel) {
+  testing.value = channel.id
+  actionError.value = ''
+  try {
+    await sendChannelTest(channel.id)
+    toast(t('toasts.channelTestSent'), { description: channel.name })
+  } catch (cause) {
+    actionError.value = cause instanceof Error ? cause.message : t('errors.actionFailed')
+  } finally {
+    testing.value = ''
+  }
+}
 </script>
 
 <template>
@@ -101,8 +117,8 @@ async function remove(channel: NotificationChannel) {
             <p class="mt-1.5 font-mono text-xs text-muted">{{ channel.target }}</p>
           </div>
           <div class="flex items-center gap-3">
-            <button class="button-secondary !px-3 !py-2 text-xs" :disabled="!channel.enabled" @click="toast(t('notifications.demoTested'), { description: channel.name })">
-              <Send :size="14" /> {{ t('notifications.test') }}
+            <button class="button-secondary !px-3 !py-2 text-xs" :disabled="!channel.enabled || testing === channel.id" @click="test(channel)">
+              <Send :size="14" /> {{ t(testing === channel.id ? 'notifications.sending' : 'notifications.test') }}
             </button>
             <AppSwitch
               :model-value="channel.enabled"

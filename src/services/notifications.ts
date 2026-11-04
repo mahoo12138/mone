@@ -42,3 +42,19 @@ export async function setNotificationChannelEnabled(id: string, enabled: boolean
   const { error } = await getSupabase().from('notification_channels').update({ enabled }).eq('id', id)
   if (error) throw error
 }
+
+export async function sendChannelTest(id: string) {
+  const supabase = getSupabase()
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new Error('Sign in before testing a channel')
+
+  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-channel-test`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ channel_id: id }),
+  })
+  const payload = await response.json().catch(() => null as { error?: string } | null)
+  if (!response.ok) throw new Error(payload?.error ?? `Delivery request failed (${response.status})`)
+  if (!payload?.ok) throw new Error(payload?.error ?? 'Delivery failed')
+}

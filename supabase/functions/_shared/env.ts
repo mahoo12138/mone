@@ -26,3 +26,22 @@ export function resolveSecretKey(): string | undefined {
   }
   return undefined
 }
+
+export function resolvePublishableKey(): string | undefined {
+  const legacy = Deno.env.get('SUPABASE_ANON_KEY')
+  if (legacy) return legacy
+  const raw = Deno.env.get('SUPABASE_PUBLISHABLE_KEYS')
+  if (!raw) return undefined
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return undefined
+  }
+  const entries = Array.isArray(parsed) ? parsed : parsed && typeof parsed === 'object' ? Object.values(parsed) : []
+  for (const entry of entries) {
+    const value = typeof entry === 'string' ? entry : (entry as { value?: unknown })?.value
+    if (typeof value === 'string' && value.startsWith('sb_publishable_')) return value
+  }
+  return undefined
+}

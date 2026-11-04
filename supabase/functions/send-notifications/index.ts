@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { assertPublicUrl } from '../_shared/ssrf.ts'
+import { deliver, incidentMessage } from '../_shared/notifiers.ts'
 import { resolveProjectUrl, resolveSecretKey } from '../_shared/env.ts'
 
 const BATCH_SIZE = 25
@@ -23,47 +23,17 @@ function targetOf(monitor: Delivery['incident']['monitor']) {
   return `${monitor.config.host ?? ''}:${monitor.config.port ?? ''}`
 }
 
-function buildMessage(delivery: Delivery) {
-  const { incident, event_type } = delivery
-  const label = event_type === 'recovered' ? 'RESOLVED' : 'DOWN'
-  const monitor = incident.monitor
-  return [
-    `[mone] ${monitor.name} ${label}`,
-    `target: ${targetOf(monitor)}`,
-    `reason: ${incident.cause}`,
-    `since: ${incident.started_at}`,
-  ].join('\n')
-}
-
-async function sendToChannel(delivery: Delivery, text: string) {
-  const config = delivery.channel.config
-  if (delivery.channel.type === 'telegram') {
-    const url = `https://api.telegram.org/bot${encodeURIComponent(config.bot_token)}/sendMessage`
-    await assertPublicUrl(new URL(url))
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: config.chat_id, text }),
-    })
-    const payload = await response.json().catch(() => ({}) as Record<string, unknown>)
-    if (!response.ok || payload.ok === false) throw new Error(`telegram ${response.status}: ${JSON.stringify(payload).slice(0, 200)}`)
-    return
-  }
-  const url = new URL(config.webhook_url)
-  await assertPublicUrl(url)
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ content: text }),
-  })
-  if (!response.ok) throw new Error(`discord ${response.status}: ${(await response.text()).slice(0, 200)}`)
-}
-
 async function processDelivery(supabase: ReturnType<typeof createClient>, delivery: Delivery) {
   let succeeded = false
   let error: string | null = null
   try {
-    await sendToChannel(delivery, buildMessage(delivery))
+    await deliver(delivery.channel, incidentMessage({
+      monitorName: delivery.incident.monitor.name,
+      target: targetOf(delivery.incident.monitor),
+      event: delivery.event_type,
+      cause: delivery.incident.cause,
+      startedAt: delivery.incident.started_at,
+    }))
     succeeded = true
   } catch (cause) {
     error = cause instanceof Error ? cause.message : 'delivery failed'
@@ -111,8 +81,8 @@ Deno.serve(async (request) => {
     return new Response(JSON.stringify({ error: loadError.message }), { status: 500, headers: { ...corsHeaders, 'content-type': 'application/json' } })
   }
 
-  const results: Awaited<ReturnType<typeof processDelivery>>[] = []
   const list = (deliveries ?? []) as unknown as Delivery[]
+  const results: Awaited<ReturnType<typeof processDelivery>>[] = []
   for (let index = 0; index < list.length; index += CONCURRENCY) {
     results.push(...await Promise.all(list.slice(index, index + CONCURRENCY).map((delivery) => processDelivery(supabase, delivery))))
   }
