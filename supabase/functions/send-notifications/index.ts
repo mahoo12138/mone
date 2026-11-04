@@ -36,7 +36,10 @@ async function processDelivery(supabase: ReturnType<typeof createClient>, delive
     }))
     succeeded = true
   } catch (cause) {
-    error = cause instanceof Error ? cause.message : 'delivery failed'
+    const frame = cause instanceof Error ? (cause.stack?.split('\n')[1] ?? '').trim() : ''
+    error = cause instanceof Error
+      ? `${cause.message}${frame ? ` @ ${frame}` : ''}`
+      : 'delivery failed'
   }
   const { error: writeError } = await supabase.rpc('record_delivery_result', {
     p_delivery_id: delivery.id,
