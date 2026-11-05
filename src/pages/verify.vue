@@ -31,7 +31,7 @@ async function verify() {
     return
   }
   state.value = 'success'
-  setTimeout(() => router.replace('/'), 1600)
+  setTimeout(() => router.replace('/overview'), 1600)
 }
 
 onMounted(verify)

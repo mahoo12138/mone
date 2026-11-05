@@ -4,6 +4,7 @@ import { ArrowUpRight, Pencil, Pause, Play, Trash2 } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from '../../composables/useToast'
 import { useMone } from '../../composables/useMone'
+import { isDemoMode } from '../../services/supabase'
 import type { Monitor } from '../../types'
 import { formatRelativeTime, monitorTarget } from '../../utils/format'
 import MonitorTypeBadge from '../common/MonitorTypeBadge.vue'
@@ -53,7 +54,7 @@ async function toggle(monitor: Monitor) {
             </div>
           </td>
           <td class="px-4 py-4"><StatusBadge :state="monitor.currentState" :paused="monitor.status === 'paused'" compact /></td>
-          <td v-if="showHeartbeat" class="px-4 py-4"><HeartbeatBar :monitor="monitor" :count="28" /></td>
+          <td v-if="showHeartbeat" class="px-4 py-4"><HeartbeatBar :monitor="monitor" :count="28" :allow-mock="isDemoMode" /></td>
           <td class="px-4 py-4 data-mono">{{ monitor.responseTimeMs === null ? '—' : `${monitor.responseTimeMs} ${t('common.ms')}` }}</td>
           <td class="px-4 py-4 data-mono">{{ monitor.uptime24h.toFixed(2) }}%</td>
           <td class="whitespace-nowrap px-4 py-4 text-xs text-muted">{{ formatRelativeTime(monitor.lastCheckAt) }}</td>

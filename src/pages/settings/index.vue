@@ -7,6 +7,7 @@ import AppSelect from '../../components/ui/AppSelect.vue'
 import ConfirmDialog from '../../components/ui/ConfirmDialog.vue'
 import { toast } from '../../composables/useToast'
 import { useMone } from '../../composables/useMone'
+import { isDemoMode } from '../../services/supabase'
 
 const { resetDemo } = useMone()
 const { t } = useI18n()
@@ -64,7 +65,7 @@ function reset() {
       </div>
     </section>
 
-    <section class="surface p-5 sm:p-6">
+    <section v-if="isDemoMode" class="surface p-5 sm:p-6">
       <div class="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
         <div class="flex items-center gap-3">
           <span class="flex size-9 items-center justify-center rounded-lg bg-canvas text-muted"><ShieldCheck :size="18" /></span>
@@ -75,6 +76,7 @@ function reset() {
     </section>
 
     <ConfirmDialog
+      v-if="isDemoMode"
       v-model:open="resetOpen"
       :title="t('settings.resetTitle')"
       :description="t('settings.resetBody')"

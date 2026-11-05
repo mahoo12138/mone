@@ -2,7 +2,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { createMockChannels, createMockIncidents, createMockMonitors } from '../data/mock'
 import { t } from '../i18n'
 import { session } from './useAuth'
-import { getSupabase, isSupabaseConfigured } from '../services/supabase'
+import { getSupabase, isDemoMode, isSupabaseConfigured } from '../services/supabase'
 import * as monitorService from '../services/monitors'
 import { listIncidents } from '../services/incidents'
 import * as notificationService from '../services/notifications'
@@ -30,7 +30,7 @@ function loadDemoState(): MoneState {
   return initialState()
 }
 
-export const state = reactive<MoneState>(isSupabaseConfigured ? { monitors: [], incidents: [], channels: [] } : loadDemoState())
+export const state = reactive<MoneState>(isDemoMode ? loadDemoState() : { monitors: [], incidents: [], channels: [] })
 export const loading = ref(false)
 export const error = ref('')
 export const dataVersion = ref(0)
@@ -93,7 +93,7 @@ export function initMone() {
     void refresh()
     startAutoRefresh()
     watch(session, () => { void refresh() })
-  } else {
+  } else if (isDemoMode) {
     watch(state, (value) => {
       try {
         localStorage.setItem(storageKey, JSON.stringify(value))

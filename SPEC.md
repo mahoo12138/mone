@@ -153,7 +153,10 @@ worker），而不是继续在 Edge Functions 里尝试。
 
 ### 2.2 Dashboard
 
-Dashboard 是用户登录后的首页。
+未登录用户访问站点根路径看到的是公开落地页；Dashboard 位于 `/overview`，是登录后的首页。
+
+Mock 数据只用于本地开发（`import.meta.env.DEV`）或显式设置 `VITE_DEMO_MODE=true` 的构建；生产构建
+在缺少 Supabase 配置时显示"未配置"提示，不回落到示例数据。带演示数据的界面会持续显示"演示数据"标记。
 
 主要内容：
 

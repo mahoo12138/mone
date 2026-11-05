@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import type { Session } from '@supabase/supabase-js'
-import { getSupabase, isSupabaseConfigured } from '../services/supabase'
+import { getSupabase, isDemoMode, isSupabaseConfigured } from '../services/supabase'
 
 export const session = ref<Session | null>(null)
 export const loading = ref(isSupabaseConfigured)
@@ -10,7 +10,7 @@ export function initAuth() {
   if (initialization) return initialization
 
   if (!isSupabaseConfigured) {
-    session.value = { user: { id: 'demo-user' } } as Session
+    if (isDemoMode) session.value = { user: { id: 'demo-user' } } as Session
     loading.value = false
     return Promise.resolve()
   }
@@ -33,17 +33,17 @@ export function useAuth() {
   void initAuth()
 
   async function signIn(email: string, password: string) {
-    if (!isSupabaseConfigured) return { ok: true, message: '' }
+    if (isDemoMode) return { ok: true, message: '' }
     const { error } = await getSupabase().auth.signInWithPassword({ email, password })
     return { ok: !error, message: error?.message ?? '' }
   }
 
   async function signUp(email: string, password: string) {
-    if (!isSupabaseConfigured) return { ok: true, message: '' }
+    if (isDemoMode) return { ok: true, message: '' }
     const { error } = await getSupabase().auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: { emailRedirectTo: `${window.location.origin}/overview` },
     })
     return { ok: !error, message: error?.message ?? '' }
   }

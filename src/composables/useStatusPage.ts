@@ -3,7 +3,7 @@ import { state } from './useMone'
 import { createMockMonitors } from '../data/mock'
 import { t } from '../i18n'
 import { getStatusPage, upsertStatusPage } from '../services/statusPages'
-import { isSupabaseConfigured } from '../services/supabase'
+import { isDemoMode, isSupabaseConfigured } from '../services/supabase'
 import type { StatusPageConfig } from '../types'
 
 const storageKey = 'mone-status-page-v1'
@@ -15,12 +15,12 @@ function createSlug() {
 function defaultConfig(): StatusPageConfig {
   return {
     enabled: true,
-    slug: isSupabaseConfigured ? createSlug() : 'mone-status',
+    slug: isDemoMode ? 'mone-status' : createSlug(),
     title: t('statusPage.defaultTitle'),
     description: t('statusPage.defaultDescription'),
-    monitorIds: isSupabaseConfigured
-      ? state.monitors.map((monitor) => monitor.id)
-      : createMockMonitors().map((monitor) => monitor.id),
+    monitorIds: isDemoMode
+      ? createMockMonitors().map((monitor) => monitor.id)
+      : state.monitors.map((monitor) => monitor.id),
   }
 }
 
@@ -34,7 +34,7 @@ function loadLocalStatusPage(): StatusPageConfig {
   return defaultConfig()
 }
 
-const statusPage = reactive<StatusPageConfig>(loadLocalStatusPage())
+const statusPage = reactive<StatusPageConfig>(isDemoMode ? loadLocalStatusPage() : defaultConfig())
 export const statusPageLoading = ref(isSupabaseConfigured)
 export const statusPageError = ref('')
 let initialization: Promise<void> | null = null
@@ -51,7 +51,7 @@ async function loadRemoteStatusPage() {
 
 export function useStatusPage() {
   function loadStatusPage(force = false) {
-    if (!isSupabaseConfigured) {
+    if (isDemoMode) {
       statusPageLoading.value = false
       return Promise.resolve()
     }
@@ -72,7 +72,7 @@ export function useStatusPage() {
   }
 
   async function saveStatusPage(next: StatusPageConfig) {
-    if (!isSupabaseConfigured) {
+    if (isDemoMode) {
       Object.assign(statusPage, next, { monitorIds: [...next.monitorIds] })
       try {
         localStorage.setItem(storageKey, JSON.stringify(statusPage))

@@ -16,7 +16,7 @@ import HeartbeatBar from '../../components/charts/HeartbeatBar.vue'
 import { toast } from '../../composables/useToast'
 import { useMone, dataVersion } from '../../composables/useMone'
 import { listCheckResults } from '../../services/checkResults'
-import { isSupabaseConfigured } from '../../services/supabase'
+import { isDemoMode } from '../../services/supabase'
 import { createCheckResults } from '../../data/mock'
 import type { CheckResult, Monitor } from '../../types'
 import { formatDateTime, formatDuration, formatInterval, formatRelativeTime, monitorTarget } from '../../utils/format'
@@ -45,7 +45,7 @@ watch([monitor, dataVersion], async () => {
     results.value = []
     return
   }
-  if (!isSupabaseConfigured) {
+  if (isDemoMode) {
     results.value = monitor.value.lastCheckAt ? createCheckResults(monitor.value) : []
     return
   }

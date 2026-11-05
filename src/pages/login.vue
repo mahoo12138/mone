@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useRouter } from '@cormijs/vue/client'
+import { useRoute, useRouter } from '@cormijs/vue/client'
 import { Activity, ArrowRight, Check, Globe, LockKeyhole } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import AppTabs from '../components/ui/AppTabs.vue'
 import { useAuth } from '../composables/useAuth'
-import { isSupabaseConfigured } from '../services/supabase'
+import { isDemoMode } from '../services/supabase'
 import { currentLocale, localeOptions, setLocale } from '../i18n'
 
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
 const { signIn, signUp } = useAuth()
-const mode = ref<'sign-in' | 'sign-up'>('sign-in')
+const mode = ref<'sign-in' | 'sign-up'>(route.query.mode === 'sign-up' ? 'sign-up' : 'sign-in')
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -23,7 +24,7 @@ const modes = computed(() => [
 ])
 const submitLabel = computed(() => {
   if (loading.value) return t('login.checkingSession')
-  if (!isSupabaseConfigured) return t('login.enterDemo')
+  if (isDemoMode) return t('login.enterDemo')
   return mode.value === 'sign-in' ? t('login.signIn') : t('login.createAccount')
 })
 
@@ -38,7 +39,7 @@ async function submit() {
     error.value = result.message || t(mode.value === 'sign-in' ? 'login.failedSignIn' : 'login.failedSignUp')
     return
   }
-  if (mode.value === 'sign-in') router.push('/')
+  if (mode.value === 'sign-in') router.push('/overview')
   else confirmationSent.value = true
 }
 </script>
@@ -72,15 +73,15 @@ async function submit() {
         </div>
 
         <form v-else class="mt-8 space-y-5" @submit.prevent="submit">
-          <AppTabs v-if="isSupabaseConfigured" v-model="mode" :options="modes" equal-width :list-label="t('login.signIn')" />
-          <label class="block"><span class="field-label">{{ t('login.email') }}</span><input v-model="email" type="email" class="field" :required="isSupabaseConfigured" autocomplete="email"></label>
-          <label class="block"><span class="field-label">{{ t('login.password') }}</span><input v-model="password" type="password" class="field" :required="isSupabaseConfigured" minlength="6" autocomplete="current-password"></label>
+          <AppTabs v-if="!isDemoMode" v-model="mode" :options="modes" equal-width :list-label="t('login.signIn')" />
+          <label class="block"><span class="field-label">{{ t('login.email') }}</span><input v-model="email" type="email" class="field" :required="!isDemoMode" autocomplete="email"></label>
+          <label class="block"><span class="field-label">{{ t('login.password') }}</span><input v-model="password" type="password" class="field" :required="!isDemoMode" minlength="6" autocomplete="current-password"></label>
           <p v-if="error" class="rounded-xl border border-down/20 bg-down/5 px-3 py-2 text-sm text-down" role="alert">{{ error }}</p>
           <button class="button-primary w-full !py-3" :disabled="loading">{{ submitLabel }}<ArrowRight :size="17" /></button>
         </form>
 
         <p class="mt-5 flex items-center justify-center gap-2 text-center text-[11px] text-muted">
-          <LockKeyhole :size="13" /> {{ t(isSupabaseConfigured ? 'login.secured' : 'login.demoNotice') }}
+          <LockKeyhole :size="13" /> {{ t(isDemoMode ? 'login.demoNotice' : 'login.secured') }}
         </p>
       </div>
     </section>

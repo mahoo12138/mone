@@ -10,7 +10,7 @@ import AppSwitch from '../../components/ui/AppSwitch.vue'
 import { useMone } from '../../composables/useMone'
 import { useStatusPage } from '../../composables/useStatusPage'
 import { createMockMonitors } from '../../data/mock'
-import { isSupabaseConfigured } from '../../services/supabase'
+import { isDemoMode, isSupabaseConfigured } from '../../services/supabase'
 import { toast } from '../../composables/useToast'
 import type { StatusPageConfig } from '../../types'
 
@@ -18,7 +18,7 @@ const { t } = useI18n()
 const { state } = useMone()
 const { statusPage, loading, error: remoteError, loadStatusPage, saveStatusPage } = useStatusPage()
 const draft = reactive<StatusPageConfig>({ ...statusPage, monitorIds: [...statusPage.monitorIds] })
-const demoMonitors = createMockMonitors()
+const demoMonitors = isDemoMode ? createMockMonitors() : []
 const saving = ref(false)
 const savedFlash = ref(false)
 const copied = ref(false)

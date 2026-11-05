@@ -16,6 +16,7 @@ import {
 import { useI18n } from 'vue-i18n'
 import { useMone } from '../composables/useMone'
 import { useAuth } from '../composables/useAuth'
+import { isDemoMode, isMisconfigured } from '../services/supabase'
 import { currentLocale, localeOptions, setLocale, type Locale } from '../i18n'
 import Toaster from '../components/ui/Toaster.vue'
 
@@ -25,9 +26,9 @@ const { t } = useI18n()
 const mobileOpen = ref(false)
 const { downMonitors, loading, error, refresh } = useMone()
 const { signOut } = useAuth()
-const isBarePage = computed(() => route.path === '/login' || route.path === '/verify' || route.path.startsWith('/status/'))
+const isBarePage = computed(() => route.path === '/' || route.path === '/login' || route.path === '/verify' || route.path.startsWith('/status/'))
 const navItems = computed(() => [
-  { to: '/', label: t('nav.overview'), icon: LayoutDashboard, exact: true },
+  { to: '/overview', label: t('nav.overview'), icon: LayoutDashboard },
   { to: '/monitors', label: t('nav.monitors'), icon: ListChecks },
   { to: '/incidents', label: t('nav.incidents'), icon: Siren },
 ])
@@ -44,13 +45,21 @@ async function leave() {
 </script>
 
 <template>
-  <RouterView v-if="isBarePage" />
+  <main v-if="isMisconfigured" class="flex min-h-screen items-center justify-center bg-canvas px-6 py-16">
+    <div class="w-full max-w-md text-center">
+      <span class="mx-auto flex size-11 items-center justify-center rounded-xl bg-forest text-lime"><Activity :size="22" /></span>
+      <h1 class="mt-6 text-2xl font-bold tracking-[-0.04em]">{{ t('setupRequired.title') }}</h1>
+      <p class="mt-3 text-sm leading-6 text-muted">{{ t('setupRequired.body') }}</p>
+      <p class="mt-6 rounded-xl border border-line bg-paper px-4 py-3 text-left font-mono text-[11px] leading-6 text-ink">VITE_SUPABASE_URL<br>VITE_SUPABASE_ANON_KEY</p>
+    </div>
+  </main>
+  <RouterView v-else-if="isBarePage" />
   <div v-else class="min-h-screen bg-canvas">
     <button v-if="mobileOpen" class="fixed inset-0 z-30 bg-forest/40 backdrop-blur-sm lg:hidden" :aria-label="t('nav.closeNavigation')" @click="mobileOpen = false" />
 
     <aside class="fixed inset-y-0 left-0 z-40 flex w-[248px] -translate-x-full flex-col bg-forest text-white transition-transform duration-200 lg:translate-x-0" :class="{ 'translate-x-0': mobileOpen }">
       <div class="flex h-[76px] items-center justify-between border-b border-white/10 px-5">
-        <RouterLink to="/" class="flex items-center gap-3" @click="mobileOpen = false">
+        <RouterLink to="/overview" class="flex items-center gap-3" @click="mobileOpen = false">
           <span class="flex size-9 items-center justify-center rounded-xl bg-lime text-forest"><Activity :size="21" :stroke-width="2.5" /></span>
           <span class="text-[22px] font-extrabold tracking-[-0.045em]">mone<span class="text-lime">.</span></span>
         </RouterLink>
@@ -70,7 +79,7 @@ async function leave() {
             :key="item.to"
             :to="item.to"
             class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 hover:bg-white/7 hover:text-white"
-            :class="{ 'bg-white/10 !text-white': item.exact ? route.path === '/' : route.path.startsWith(item.to) }"
+            :class="{ 'bg-white/10 !text-white': route.path.startsWith(item.to) }"
             @click="mobileOpen = false"
           >
             <component :is="item.icon" :size="18" :stroke-width="1.8" />
@@ -96,6 +105,9 @@ async function leave() {
       </div>
 
       <div class="border-t border-white/10 p-4">
+        <p v-if="isDemoMode" class="mb-3 flex items-center gap-2 rounded-lg bg-lime/15 px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em] text-lime">
+          <span class="size-1.5 rounded-full bg-lime" /> {{ t('nav.demoBadge') }}
+        </p>
         <div class="mb-4 flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2.5 text-xs text-white/60">
           <span class="size-1.5 rounded-full" :class="downMonitors.length ? 'bg-down' : 'bg-lime'" />
           {{ downMonitors.length ? t('nav.attention', { count: downMonitors.length }) : t('nav.allOperational') }}
@@ -155,7 +167,7 @@ async function leave() {
     <div class="lg:pl-[248px]">
       <div class="flex h-[64px] items-center justify-between border-b border-line bg-paper px-5 lg:hidden">
         <button class="icon-button -ml-2" :aria-label="t('nav.openNavigation')" @click="mobileOpen = true"><Menu :size="21" /></button>
-        <RouterLink to="/" class="flex items-center gap-2">
+        <RouterLink to="/overview" class="flex items-center gap-2">
           <span class="flex size-8 items-center justify-center rounded-lg bg-forest text-lime"><Activity :size="18" /></span>
           <span class="text-xl font-extrabold tracking-tight">mone.</span>
         </RouterLink>
