@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="48" viewBox="0 0 150 48" role="img" aria-label="Mone">
+  <title>Mone</title>
+  <rect width="150" height="48" rx="14" fill="#14271d"/>
+  <g transform="translate(16 12)" fill="none" stroke="#c7f36b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>
+  </g>
+  <text x="48" y="33" font-family="Manrope Variable, Manrope, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1.2" fill="#fbfcf8">mone<tspan fill="#c7f36b">.</tspan></text>
+</svg>
